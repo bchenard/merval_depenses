@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "merval-depenses-app",
+    "prod": "merval-depenses-app"
+  },
+  "targets": {},
+  "etags": {}
+}
