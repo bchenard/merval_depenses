@@ -11,16 +11,19 @@
     "shell": "firebase functions:shell",
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
+    "logs": "firebase functions:log",
+    "migrate": "node migrate.js",
+    "db:test": "node test-connection.js",
+    "db:test-quick": "node -e \"const db = require('./db'); db.query('SELECT NOW() as time').then(r => { console.log('✅ DB Connected:', r.rows[0]); process.exit(0); }).catch(e => { console.error('❌ DB Error:', e.message); process.exit(1); })\""
   },
   "dependencies": {
+    "dotenv": "^17.2.4",
     "firebase-admin": "^13.0.1",
-    "firebase-functions": "^6.3.0"
+    "firebase-functions": "^6.3.0",
+    "pg": "^8.18.0"
   },
   "devDependencies": {
     "firebase-functions-test": "^3.3.0"
   },
   "private": true
 }
-
-
