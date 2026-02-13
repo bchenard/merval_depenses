@@ -94,6 +94,68 @@ exports.getExpenses = onRequest(
   }
 );
 
+// GET monthly estimate
+exports.getMonthlyEstimate = onRequest(
+  {
+    region: 'europe-west9',
+    vpcConnector: 'projects/merval-depenses-app/locations/europe-west9/connectors/merval-connector',
+    vpcConnectorEgressSettings: 'PRIVATE_RANGES_ONLY',
+    secrets: ['DB_PASSWORD'],
+    timeoutSeconds: 60,
+    memory: '256MiB',
+  },
+  async (req, res) => {
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      res.set(key, value);
+    });
+
+    if (req.method === 'OPTIONS') {
+      return res.status(204).send('');
+    }
+
+    let client;
+    try {
+      client = await pool.connect();
+
+      const result = await client.query(
+        `SELECT COALESCE(SUM(amount), 0) AS total
+         FROM expenses
+         WHERE expense_date >= date_trunc('month', CURRENT_DATE)
+           AND expense_date < (date_trunc('month', CURRENT_DATE) + INTERVAL '1 month')`
+      );
+
+      const totalSoFar = Number(result.rows[0]?.total ?? 0);
+      const now = new Date();
+      const daysElapsed = now.getDate();
+      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const estimatedTotal = daysElapsed > 0
+        ? (totalSoFar / daysElapsed) * daysInMonth
+        : 0;
+
+      res.json({
+        success: true,
+        data: {
+          totalSoFar,
+          daysElapsed,
+          daysInMonth,
+          estimatedTotal,
+        },
+      });
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error calculating estimate',
+        error: error.message,
+      });
+    } finally {
+      if (client) {
+        client.release();
+      }
+    }
+  }
+);
+
 // POST expense
 exports.createExpense = onRequest(
   {
