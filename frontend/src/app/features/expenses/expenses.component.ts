@@ -62,11 +62,11 @@ export class ExpensesComponent implements OnInit {
   }
 
   protected reloadEstimate(): void {
-    this.loadExpenses();
+    this.loadMonthlyEstimate();
   }
 
   protected reloadExpenses(): void {
-    this.loadMonthlyEstimate();
+    this.loadExpenses();
   }
 
   protected loadExpenses(): void {
@@ -122,13 +122,14 @@ export class ExpensesComponent implements OnInit {
     this.expenseService.createExpense(this.newExpense).subscribe({
       next: (response) => {
         if (response.data) {
-          this.expenses = [response.data, ...this.expenses];
           this.newExpense = {
             amount: 0,
             place: '',
             expense_date: '',
             category: 'sorties'
           };
+          // Recharger dynamiquement la liste et l'estimation
+          this.loadExpenses();
           this.loadMonthlyEstimate();
         }
       },
@@ -171,11 +172,9 @@ export class ExpensesComponent implements OnInit {
           return;
         }
 
-        this.expenses = this.expenses.map((expense) =>
-          expense.id === updated.id ? updated : expense
-        );
-
         this.cancelEdit();
+        // Recharger dynamiquement la liste et l'estimation
+        this.loadExpenses();
         this.loadMonthlyEstimate();
       },
       error: () => {
@@ -195,7 +194,8 @@ export class ExpensesComponent implements OnInit {
 
     this.expenseService.deleteExpense(expense.id).subscribe({
       next: () => {
-        this.expenses = this.expenses.filter((item) => item.id !== expense.id);
+        // Recharger dynamiquement la liste et l'estimation
+        this.loadExpenses();
         this.loadMonthlyEstimate();
       },
       error: () => {
