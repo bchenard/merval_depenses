@@ -1,0 +1,131 @@
+<main class="page">
+  <section class="header">
+    <h1>Depenses</h1>
+    <p>Creer, modifier et supprimer vos depenses en local.</p>
+  </section>
+
+  <section class="card">
+    <div class="toolbar">
+      <h2>Estimation fin de mois</h2>
+      <button mat-icon-button type="button" aria-label="Recharger l'estimation" (click)="reloadEstimate()">
+        <mat-icon>refresh</mat-icon>
+      </button>
+    </div>
+
+    <p *ngIf="estimateLoading">Chargement...</p>
+    <p class="error" *ngIf="estimateErrorMessage">{{ estimateErrorMessage }}</p>
+
+    <div class="estimate" *ngIf="!estimateLoading && monthlyEstimate as estimate">
+      <p>Depenses du mois: {{ estimate.totalSoFar | number: '1.2-2' }} €</p>
+      <p>Projection fin de mois: {{ estimate.estimatedTotal | number: '1.2-2' }} €</p>
+      <p class="hint">Base sur {{ estimate.daysElapsed }} jour(s) ecoule(s) sur {{ estimate.daysInMonth }}.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Nouvelle depense</h2>
+    <form (ngSubmit)="createExpense()" class="form">
+      <label>
+        Montant
+        <input type="number" step="0.01" min="0" [(ngModel)]="newExpense.amount" name="amount" />
+      </label>
+      <label>
+        Lieu
+        <input type="text" [(ngModel)]="newExpense.place" name="place" />
+      </label>
+      <label>
+        Date
+        <input type="date" [(ngModel)]="newExpense.expense_date" name="expense_date" />
+      </label>
+      <label>
+        Categorie
+        <select [(ngModel)]="newExpense.category" name="category">
+          <option *ngFor="let category of categories" [value]="category">{{ category }}</option>
+        </select>
+      </label>
+      <button mat-icon-button type="submit" aria-label="Ajouter une depense">
+        <mat-icon>add</mat-icon>
+      </button>
+    </form>
+    <p class="error" *ngIf="errorMessage">{{ errorMessage }}</p>
+  </section>
+
+  <section class="card">
+    <div class="toolbar">
+      <h2>Liste des depenses</h2>
+      <button mat-icon-button type="button" aria-label="Recharger la liste" (click)="reloadExpenses()">
+        <mat-icon>refresh</mat-icon>
+      </button>
+    </div>
+
+    <p *ngIf="loading">Chargement...</p>
+
+    <table *ngIf="!loading">
+      <thead>
+        <tr>
+          <th>Montant</th>
+          <th>
+            <button class="sort" type="button" (click)="sortService.toggleSort('place')">
+              Lieu
+              <mat-icon>{{ sortService.getSortIcon('place') }}</mat-icon>
+            </button>
+          </th>
+          <th>
+            <button class="sort" type="button" (click)="sortService.toggleSort('date')">
+              Date
+              <mat-icon>{{ sortService.getSortIcon('date') }}</mat-icon>
+            </button>
+          </th>
+          <th>
+            <button class="sort" type="button" (click)="sortService.toggleSort('category')">
+              Categorie
+              <mat-icon>{{ sortService.getSortIcon('category') }}</mat-icon>
+            </button>
+          </th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let expense of sortedExpenses">
+          <td *ngIf="editingId !== expense.id">{{ expense.amount | number: '1.2-2' }}</td>
+          <td *ngIf="editingId === expense.id && editModel as model">
+            <input type="number" step="0.01" min="0" [(ngModel)]="model.amount" name="editAmount{{ expense.id }}" />
+          </td>
+
+          <td *ngIf="editingId !== expense.id">{{ expense.place }}</td>
+          <td *ngIf="editingId === expense.id && editModel as model">
+            <input type="text" [(ngModel)]="model.place" name="editPlace{{ expense.id }}" />
+          </td>
+
+          <td *ngIf="editingId !== expense.id">{{ formatDate(expense.expense_date) }}</td>
+          <td *ngIf="editingId === expense.id && editModel as model">
+            <input type="date" [(ngModel)]="model.expense_date" name="editDate{{ expense.id }}" />
+          </td>
+
+          <td *ngIf="editingId !== expense.id">{{ expense.category }}</td>
+          <td *ngIf="editingId === expense.id && editModel as model">
+            <select [(ngModel)]="model.category" name="editCategory{{ expense.id }}">
+              <option *ngFor="let category of categories" [value]="category">{{ category }}</option>
+            </select>
+          </td>
+
+          <td class="actions">
+            <button *ngIf="editingId !== expense.id" mat-icon-button type="button" aria-label="Modifier" (click)="startEdit(expense)">
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button *ngIf="editingId === expense.id" mat-icon-button type="button" aria-label="Sauver" (click)="saveEdit()">
+              <mat-icon>save</mat-icon>
+            </button>
+            <button *ngIf="editingId === expense.id" mat-icon-button type="button" aria-label="Annuler" (click)="cancelEdit()">
+              <mat-icon>close</mat-icon>
+            </button>
+            <button mat-icon-button type="button" aria-label="Supprimer" (click)="deleteExpense(expense)">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+</main>
+
