@@ -321,13 +321,13 @@ npm run db:test    # Tester la connexion DB
 }
 ```
 
-## ⚠️ Troubleshooting
+## ⚠️ Difficultés rencontrées pour le déploiement
 
 ### Erreur de connexion à Cloud SQL
 
-1. Vérifiez que Cloud SQL Proxy est démarré
-2. Vérifiez les credentials dans `functions/.env`
-3. Vérifiez que l'instance Cloud SQL est démarrée dans Google Cloud Console
+1. Vérifier que Cloud SQL Proxy est démarré
+2. Vérifier les credentials dans `functions/.env`
+3. Vérifier que l'instance Cloud SQL est démarrée dans Google Cloud Console
 
 ### Erreur CORS
 
@@ -335,14 +335,9 @@ Les headers CORS sont déjà configurés dans `functions/index.js` pour accepter
 
 ### Erreur de déploiement des functions
 
-1. Vérifiez que le VPC Connector existe et est dans la bonne région
-2. Vérifiez que le secret `DB_PASSWORD` existe dans Secret Manager
-3. Vérifiez que les permissions IAM sont correctes
-
-### L'application frontend ne se connecte pas au backend
-
-1. Vérifiez l'URL de l'API dans `frontend/src/app/expense.service.ts`
-2. Assurez-vous que les functions sont déployées avec `firebase deploy --only functions`
+1. Vérifier que le VPC Connector existe et est dans la bonne région
+2. Vérifier que le secret `DB_PASSWORD` existe dans Secret Manager
+3. Vérifier que les permissions IAM sont correctes
 
 ## 📝 Technologies utilisées
 
@@ -359,142 +354,6 @@ Les headers CORS sont déjà configurés dans `functions/index.js` pour accepter
 - Le VPC Connector assure une connexion privée entre Functions et Cloud SQL
 - CORS configuré pour les requêtes cross-origin
 
-## 📄 Licence
-
-MIT
-
-## 🗄️ Base de données
-
-### Structure
-
-**Table `expenses`** :
-- `id` : Serial Primary Key
-- `amount` : Decimal(10,2) - Montant de la dépense
-- `place` : Varchar(500) - Lieu complet (ex: "restaurant du 12 rue des Prunes 44200 Nantes")
-- `expense_date` : Date - Date de la dépense saisie par l'utilisateur
-- `category` : expense_category (ENUM) - Catégorie : sorties / courses / essences / achats exceptionnels
-- `created_at` : Timestamp - Date de création de l'enregistrement
-- `updated_at` : Timestamp - Date de modification
-
-**Exemple de dépense** :
-```json
-{
-  "amount": 17.20,
-  "place": "restaurant du 12 rue des Prunes 44200 Nantes",
-  "expense_date": "2026-02-04",
-  "category": "sorties"
-}
-```
-
-### Catégories disponibles
-
-- **sorties** - Restaurants, cinémas, loisirs
-- **courses** - Supermarchés, alimentation
-- **essences** - Carburant, stations-service
-- **achats exceptionnels** - Achats ponctuels importants
-
-### Commandes
-
-```bash
-# Exécuter les migrations
-cd functions
-npm run migrate
-
-# Tester la connexion
-npm run db:test
-```
-
-## 🔥 Firebase Functions
-
-### Endpoints disponibles
-
-| Endpoint | Méthode | Description |
-|----------|---------|-------------|
-| `/helloWorld` | GET | Test simple |
-| `/api` | GET | Hello World API |
-| `/testDb` | GET | Test connexion PostgreSQL |
-| `/diagnostics` | GET | Vérifier la configuration en prod |
-| `/getExpenses` | GET | Récupérer toutes les dépenses |
-| `/createExpense` | POST | Créer une dépense |
-| `/updateExpense` | PUT | Mettre à jour une dépense |
-| `/deleteExpense` | DELETE | Supprimer une dépense |
-
-### Configuration en production
-
-Voir [FIREBASE_FUNCTIONS_CONFIG.md](FIREBASE_FUNCTIONS_CONFIG.md) pour configurer les variables d'environnement et les secrets.
-
-### URLs de production
-
-- Frontend : `https://merval-depenses-app.web.app`
-- Functions : `https://us-central1-merval-depenses-app.cloudfunctions.net/`
-
-## 📚 Documentation
-
-- **⚡ [QUICK_DEPLOY.md](QUICK_DEPLOY.md)** - **DÉPLOYER EN 5 MINUTES**
-- **[PROJECT_STATUS.md](PROJECT_STATUS.md)** - État complet du projet
-- **[LOCAL_RUN_CHECKLIST.md](LOCAL_RUN_CHECKLIST.md)** - Lancer tout en local (base + functions + frontend)
-- **[START_HERE.md](START_HERE.md)** ⭐ **COMMENCEZ ICI** - Guide de démarrage
-- **[QUICK_START_DB.md](QUICK_START_DB.md)** - Guide rapide pour configurer Cloud SQL
-- **[DATABASE_SETUP.md](DATABASE_SETUP.md)** - Documentation complète Cloud SQL
-- **[DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)** - Schéma détaillé de la base de données
-- **[BACKEND_DEPLOYMENT.md](BACKEND_DEPLOYMENT.md)** - Guide de déploiement du backend
-- **[API_TESTS.md](API_TESTS.md)** - Tests et exemples d'utilisation de l'API
-- **[frontend/FIREBASE_CONFIG.md](frontend/FIREBASE_CONFIG.md)** - Configuration Firebase frontend
-
-## 🛠️ Développement
-
-### Frontend (Angular)
-
-```bash
-cd frontend
-npm start              # Démarre le serveur de dev (http://localhost:4200)
-npm run build          # Build pour production
-npm test              # Exécute les tests
-```
-
-### Backend (Firebase Functions)
-
-```bash
-cd functions
-npm run serve          # Démarre l'émulateur Firebase Functions
-npm run deploy         # Déploie les functions
-npm run logs           # Affiche les logs
-npm run migrate        # Exécute les migrations DB
-npm run db:test        # Test la connexion DB
-```
-
-## 🔐 Variables d'environnement
-
-### Développement local
-
-Créez `functions/.env` :
-
-```env
-INSTANCE_CONNECTION_NAME=projet:region:instance
-DB_USER=postgres
-DB_PASSWORD=votre-mot-de-passe
-DB_NAME=merval_depenses
-DB_HOST=localhost
-DB_PORT=5432
-NODE_ENV=development
-```
-
-### Production
-
-Configurez avec Firebase CLI :
-
-```bash
-firebase functions:secrets:set DB_PASSWORD
-firebase functions:config:set db.user="postgres" db.name="merval_depenses" db.instance="PROJECT:REGION:INSTANCE"
-```
-
-## 🔍 Troubleshooting
-
-Consultez la section Troubleshooting dans [QUICK_START_DB.md](QUICK_START_DB.md)
-
-## 📄 License
-
-ISC
 
 ## 👤 Auteur
 
