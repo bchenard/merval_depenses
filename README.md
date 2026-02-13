@@ -6,19 +6,49 @@ Application de suivi des dépenses avec Angular (frontend) et Firebase Functions
 
 ```
 merval_depenses/
-├── frontend/           # Application Angular
-│   ├── src/           # Code source Angular
-│   └── public/        # Assets statiques
-├── functions/          # Firebase Functions (Backend API)
-│   ├── index.js       # Endpoints API (getExpenses, createExpense, deleteExpense)
-│   ├── db.js          # Configuration base de données
-│   ├── migrate.js     # Script de migration DB
-│   └── package.json   # Dépendances backend
-├── database/          # Scripts SQL
-│   └── init.sql       # Schéma de la base de données
-├── firebase.json      # Configuration Firebase
-├── .firebaserc        # Projet Firebase
-└── apphosting.yaml    # Configuration App Hosting
+├── frontend/                   # Application Angular
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── core/
+│   │   │   │   └── services/
+│   │   │   │       └── expense.service.ts    # Service API
+│   │   │   ├── features/
+│   │   │   │   └── expenses/
+│   │   │   │       ├── expenses.component.ts # Composant principal
+│   │   │   │       ├── expenses.component.html
+│   │   │   │       ├── expenses.component.css
+│   │   │   │       └── services/
+│   │   │   │           └── expense-sort.service.ts
+│   │   │   └── shared/
+│   │   │       └── models/
+│   │   │           └── expense.model.ts      # Modèles TypeScript
+│   │   └── ...
+│   ├── public/                 # Assets statiques
+│   └── package.json
+├── functions/                  # Firebase Functions (Backend API)
+│   ├── src/
+│   │   ├── api/
+│   │   │   └── expenses/
+│   │   │       ├── index.js           # Export des handlers
+│   │   │       └── handlers/
+│   │   │           ├── get.js         # GET /getExpenses, /getMonthlyEstimate
+│   │   │           ├── create.js      # POST /createExpense
+│   │   │           ├── update.js      # PUT /updateExpense
+│   │   │           └── delete.js      # DELETE /deleteExpense
+│   │   ├── config/
+│   │   │   └── database.js            # Configuration pool PostgreSQL
+│   │   └── utils/
+│   │       └── response.js            # Helpers pour réponses HTTP
+│   ├── db.js                   # Client DB pour tests locaux
+│   ├── index.js                # Point d'entrée Firebase Functions
+│   ├── migrate.js              # Script de migration DB
+│   ├── test-connection.js      # Script de test de connexion
+│   └── package.json
+├── database/                   # Scripts SQL
+│   └── init.sql               # Schéma de la base de données
+├── firebase.json              # Configuration Firebase
+├── .firebaserc                # Projet Firebase
+└── apphosting.yaml            # Configuration App Hosting
 ```
 
 ## 🚀 Quick Start
@@ -243,6 +273,22 @@ Récupère toutes les dépenses, triées par date décroissante.
 }
 ```
 
+### GET /getMonthlyEstimate
+Calcule l'estimation des dépenses pour le mois en cours basée sur les dépenses actuelles.
+
+**Réponse :**
+```json
+{
+  "success": true,
+  "data": {
+    "totalSoFar": 245.67,
+    "daysElapsed": 13,
+    "daysInMonth": 28,
+    "estimatedTotal": 529.48
+  }
+}
+```
+
 ### POST /createExpense
 Crée une nouvelle dépense.
 
@@ -260,8 +306,47 @@ Crée une nouvelle dépense.
 ```json
 {
   "success": true,
-  "data": { ... },
+  "data": {
+    "id": 1,
+    "amount": "17.20",
+    "place": "restaurant du 12 rue des Prunes 44200 Nantes",
+    "expense_date": "2026-02-04",
+    "category": "sorties",
+    "created_at": "2026-02-13T10:00:00.000Z",
+    "updated_at": "2026-02-13T10:00:00.000Z"
+  },
   "message": "Expense added successfully"
+}
+```
+
+### PUT /updateExpense
+Met à jour une dépense existante.
+
+**Body :**
+```json
+{
+  "id": 1,
+  "amount": 25.50,
+  "place": "restaurant du 12 rue des Prunes 44200 Nantes",
+  "expense_date": "2026-02-04",
+  "category": "sorties"
+}
+```
+
+**Réponse :**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "amount": "25.50",
+    "place": "restaurant du 12 rue des Prunes 44200 Nantes",
+    "expense_date": "2026-02-04",
+    "category": "sorties",
+    "created_at": "2026-02-13T10:00:00.000Z",
+    "updated_at": "2026-02-13T10:30:00.000Z"
+  },
+  "message": "Expense updated successfully"
 }
 ```
 
@@ -275,12 +360,28 @@ Supprime une dépense.
 {
   "success": true,
   "message": "Expense deleted successfully",
-  "data": { ... }
+  "data": {
+    "id": 1,
+    "amount": "17.20",
+    "place": "restaurant du 12 rue des Prunes 44200 Nantes",
+    "expense_date": "2026-02-04",
+    "category": "sorties",
+    "created_at": "2026-02-13T10:00:00.000Z",
+    "updated_at": "2026-02-13T10:00:00.000Z"
+  }
 }
 ```
 
 ### GET /testDb
 Teste la connexion à la base de données.
+
+**Réponse :**
+```json
+{
+  "success": true,
+  "message": "Database connection successful"
+}
+```
 
 ## 🛠️ Scripts disponibles
 
