@@ -36,7 +36,16 @@ interface ApiResponse<T> {
   providedIn: 'root'
 })
 export class ExpenseService {
-  private readonly API_URL = 'http://localhost:5001/merval-depenses-app/us-central1';
+  private readonly API_URL = this.getApiUrl();
+
+  private getApiUrl(): string {
+    // En prod (Firebase Hosting), utiliser l'URL de production
+    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+      return 'https://europe-west9-merval-depenses-app.cloudfunctions.net';
+    }
+    // En dev local
+    return 'http://localhost:5001/merval-depenses-app/europe-west9';
+  }
 
   constructor(private http: HttpClient) {}
 

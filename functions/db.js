@@ -12,27 +12,47 @@ if (process.env.NODE_ENV !== 'production') {
  * Pour le développement local, utilisez TCP
  */
 
-const isProduction = process.env.NODE_ENV === 'production';
+// Déterminer si on est en production
+// En production Firebase Functions, FUNCTION_NAME ou K_SERVICE sont définis
+const isProduction = process.env.FUNCTION_NAME !== undefined ||
+                     process.env.K_SERVICE !== undefined;
 
-// Configuration pour Cloud SQL (Production)
-const productionConfig = {
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME || 'merval-depenses-db',
-  host: `/cloudsql/${process.env.INSTANCE_CONNECTION_NAME}`,
-};
+// Obtenir la configuration
+let dbConfig;
 
-// Configuration pour développement local
-const developmentConfig = {
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME || 'merval_depenses',
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
-};
+if (isProduction) {
+  // Configuration pour Cloud SQL (Production)
+  // Les variables sont chargées depuis .env.yaml lors du déploiement
+  dbConfig = {
+    user: process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME || 'merval_depenses',
+    host: `/cloudsql/${process.env.INSTANCE_CONNECTION_NAME}`,
+  };
+
+  console.log('🔧 Database config (Production):');
+  console.log('  - User:', dbConfig.user);
+  console.log('  - Database:', dbConfig.database);
+  console.log('  - Host:', dbConfig.host);
+} else {
+  // Configuration pour développement local
+  dbConfig = {
+    user: process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME || 'merval_depenses',
+    host: process.env.DB_HOST || 'localhost',
+    port: process.env.DB_PORT || 5432,
+  };
+
+  console.log('🔧 Database config (Development):');
+  console.log('  - User:', dbConfig.user);
+  console.log('  - Database:', dbConfig.database);
+  console.log('  - Host:', dbConfig.host);
+  console.log('  - Port:', dbConfig.port);
+}
 
 // Créer le pool de connexions
-const pool = new Pool(isProduction ? productionConfig : developmentConfig);
+const pool = new Pool(dbConfig);
 
 // Gestion des erreurs du pool
 pool.on('error', (err) => {

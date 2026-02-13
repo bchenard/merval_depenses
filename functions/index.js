@@ -1,168 +1,276 @@
-const { onRequest } = require("firebase-functions/v2/https");
-const logger = require("firebase-functions/logger");
-const { query, getClient } = require("./db");
+const { onRequest } = require('firebase-functions/v2/https');
+const { Pool } = require('pg');
 
-// Simple Hello World function
-exports.helloWorld = onRequest((request, response) => {
-  logger.info("Hello logs!", { structuredData: true });
-  response.send("Hello from Firebase!");
+// Charger dotenv seulement si disponible (dev local)
+try {
+  require('dotenv').config();
+} catch (e) {
+  // dotenv n'est pas installé en production, c'est OK
+  console.log('dotenv not available (production mode)');
+}
+
+// Configuration de la base de données
+const dbConfig = {
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME || 'merval_depenses',
+  host: '10.21.0.3', // IP privée de Cloud SQL via VPC Connector
+  port: 5432,
+  max: 1,
+  connectionTimeoutMillis: 30000,
+  idleTimeoutMillis: 600000,
+  allowExitOnIdle: true,
+  ssl: {
+    rejectUnauthorized: false, // Cloud SQL utilise des certificats auto-signés
+  },
+};
+
+console.log('Database config:', {
+  ...dbConfig,
+  password: dbConfig.password ? '***' : 'MISSING',
 });
 
-// API endpoint compatible with the original backend
-exports.api = onRequest((request, response) => {
-  response.set('Content-Type', 'text/plain');
-  response.send('Hello World');
+const pool = new Pool(dbConfig);
+
+pool.on('error', (err) => {
+  console.error('Pool error:', err);
 });
 
-// Test de connexion à la base de données
-exports.testDb = onRequest(async (request, response) => {
-  try {
-    const result = await query('SELECT NOW() as current_time');
-    logger.info("Database connection successful", result.rows[0]);
-    response.json({
-      success: true,
-      message: "Database connection successful",
-      currentTime: result.rows[0].current_time
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, DELETE, PUT',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+// GET expenses
+exports.getExpenses = onRequest(
+  {
+    region: 'europe-west9',
+    vpcConnector: 'projects/merval-depenses-app/locations/europe-west9/connectors/merval-connector',
+    vpcConnectorEgressSettings: 'PRIVATE_RANGES_ONLY',
+    secrets: ['DB_PASSWORD'],
+    timeoutSeconds: 60,
+    memory: '256MiB',
+  },
+  async (req, res) => {
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      res.set(key, value);
     });
-  } catch (error) {
-    logger.error("Database connection failed", error);
-    response.status(500).json({
-      success: false,
-      message: "Database connection failed",
-      error: error.message
-    });
-  }
-});
 
-// Exemple: Obtenir toutes les dépenses
-exports.getExpenses = onRequest(async (request, response) => {
-  try {
-    const result = await query('SELECT * FROM expenses ORDER BY expense_date DESC');
-    response.json({
-      success: true,
-      data: result.rows
-    });
-  } catch (error) {
-    logger.error("Error fetching expenses", error);
-    response.status(500).json({
-      success: false,
-      message: "Error fetching expenses",
-      error: error.message
-    });
-  }
-});
-
-// Exemple: Créer une dépense
-exports.createExpense = onRequest(async (request, response) => {
-  // Permettre CORS
-  response.set('Access-Control-Allow-Origin', '*');
-
-  if (request.method === 'OPTIONS') {
-    response.set('Access-Control-Allow-Methods', 'POST');
-    response.set('Access-Control-Allow-Headers', 'Content-Type');
-    response.status(204).send('');
-    return;
-  }
-
-  if (request.method !== 'POST') {
-    response.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
-
-  try {
-    const { amount, place, expense_date, category } = request.body;
-
-    // Validation des champs requis
-    if (!amount || !place || !expense_date || !category) {
-      response.status(400).json({
-        success: false,
-        message: "amount, place, expense_date et category sont requis"
-      });
-      return;
+    if (req.method === 'OPTIONS') {
+      return res.status(204).send('');
     }
 
-    // Validation de la catégorie
-    const validCategories = ['sorties', 'courses', 'essences', 'achats exceptionnels'];
-    if (!validCategories.includes(category)) {
-      response.status(400).json({
-        success: false,
-        message: `La catégorie doit être: ${validCategories.join(', ')}`
+    let client;
+    try {
+      console.log('Connecting to database...');
+      client = await pool.connect();
+      console.log('Connected successfully');
+
+      const result = await client.query(
+        'SELECT * FROM expenses ORDER BY expense_date DESC'
+      );
+
+      console.log(`Retrieved ${result.rows.length} expenses`);
+
+      res.json({
+        success: true,
+        data: result.rows,
+        count: result.rows.length,
       });
-      return;
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error fetching expenses',
+        error: error.message,
+        code: error.code,
+      });
+    } finally {
+      if (client) {
+        client.release();
+      }
+    }
+  }
+);
+
+// POST expense
+exports.createExpense = onRequest(
+  {
+    region: 'europe-west9',
+    vpcConnector: 'projects/merval-depenses-app/locations/europe-west9/connectors/merval-connector',
+    vpcConnectorEgressSettings: 'PRIVATE_RANGES_ONLY',
+    secrets: ['DB_PASSWORD'],
+    timeoutSeconds: 60,
+    memory: '256MiB',
+  },
+  async (req, res) => {
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      res.set(key, value);
+    });
+
+    if (req.method === 'OPTIONS') {
+      return res.status(204).send('');
     }
 
-    const result = await query(
-      'INSERT INTO expenses (amount, place, expense_date, category, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING *',
-      [amount, place, expense_date, category]
-    );
+    let client;
+    try {
+      const { amount, place, expense_date, category } = req.body;
 
-    response.status(201).json({
-      success: true,
-      data: result.rows[0]
-    });
-  } catch (error) {
-    logger.error("Error creating expense", error);
-    response.status(500).json({
-      success: false,
-      message: "Error creating expense",
-      error: error.message
-    });
+      if (!amount || !place || !expense_date || !category) {
+        return res.status(400).json({
+          success: false,
+          message: 'Missing required fields: amount, place, expense_date, category',
+        });
+      }
+
+      client = await pool.connect();
+
+      const result = await client.query(
+        `INSERT INTO expenses (amount, place, category, expense_date, created_at)
+         VALUES ($1, $2, $3, $4, NOW())
+         RETURNING *`,
+        [amount, place, category, expense_date]
+      );
+
+      console.log('Expense added:', result.rows[0]);
+
+      res.json({
+        success: true,
+        data: result.rows[0],
+        message: 'Expense added successfully',
+      });
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error adding expense',
+        error: error.message,
+      });
+    } finally {
+      if (client) {
+        client.release();
+      }
+    }
   }
+);
+
+// DELETE expense
+exports.deleteExpense = onRequest(
+  {
+    region: 'europe-west9',
+    vpcConnector: 'projects/merval-depenses-app/locations/europe-west9/connectors/merval-connector',
+    vpcConnectorEgressSettings: 'PRIVATE_RANGES_ONLY',
+    secrets: ['DB_PASSWORD'],
+    timeoutSeconds: 60,
+    memory: '256MiB',
+  },
+  async (req, res) => {
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      res.set(key, value);
+    });
+
+    if (req.method === 'OPTIONS') {
+      return res.status(204).send('');
+    }
+
+    let client;
+    try {
+      const id = req.query.id || req.body.id;
+
+      if (!id) {
+        return res.status(400).json({
+          success: false,
+          message: 'Missing expense id',
+        });
+      }
+
+      client = await pool.connect();
+
+      const result = await client.query(
+        'DELETE FROM expenses WHERE id = $1 RETURNING *',
+        [id]
+      );
+
+      if (result.rowCount === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Expense not found',
+        });
+      }
+
+      console.log('Expense deleted:', result.rows[0]);
+
+      res.json({
+        success: true,
+        message: 'Expense deleted successfully',
+        data: result.rows[0],
+      });
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error deleting expense',
+        error: error.message,
+      });
+    } finally {
+      if (client) {
+        client.release();
+      }
+    }
+  }
+);
+
+// Test DB connection
+exports.testDb = onRequest(
+  {
+    region: 'europe-west9',
+    vpcConnector: 'projects/merval-depenses-app/locations/europe-west9/connectors/merval-connector',
+    vpcConnectorEgressSettings: 'PRIVATE_RANGES_ONLY',
+    secrets: ['DB_PASSWORD'],
+  },
+  async (req, res) => {
+    let client;
+    try {
+      console.log('Testing database connection...');
+      client = await pool.connect();
+
+      const result = await client.query('SELECT NOW() as time, version() as version');
+
+      res.json({
+        success: true,
+        message: 'Database connected successfully!',
+        serverTime: result.rows[0].time,
+        version: result.rows[0].version,
+        config: {
+          host: pool.options.host,
+          database: pool.options.database,
+          user: pool.options.user,
+          hasPassword: !!pool.options.password,
+        },
+      });
+    } catch (error) {
+      console.error('Connection test failed:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        code: error.code,
+      });
+    } finally {
+      if (client) {
+        client.release();
+      }
+    }
+  }
+);
+
+// Simple Hello World
+exports.helloWorld = onRequest({ region: 'europe-west9' }, (req, res) => {
+  res.json({ message: 'Hello from Cloud Functions!' });
 });
 
-// Exemple: Supprimer une dépense
-exports.deleteExpense = onRequest(async (request, response) => {
-  response.set('Access-Control-Allow-Origin', '*');
-
-  if (request.method === 'OPTIONS') {
-    response.set('Access-Control-Allow-Methods', 'DELETE');
-    response.set('Access-Control-Allow-Headers', 'Content-Type');
-    response.status(204).send('');
-    return;
-  }
-
-  if (request.method !== 'DELETE') {
-    response.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
-
-  try {
-    const expenseId = request.query.id || request.body.id;
-
-    if (!expenseId) {
-      response.status(400).json({
-        success: false,
-        message: "Expense ID is required"
-      });
-      return;
-    }
-
-    const result = await query(
-      'DELETE FROM expenses WHERE id = $1 RETURNING *',
-      [expenseId]
-    );
-
-    if (result.rowCount === 0) {
-      response.status(404).json({
-        success: false,
-        message: "Expense not found"
-      });
-      return;
-    }
-
-    response.json({
-      success: true,
-      message: "Expense deleted successfully",
-      data: result.rows[0]
-    });
-  } catch (error) {
-    logger.error("Error deleting expense", error);
-    response.status(500).json({
-      success: false,
-      message: "Error deleting expense",
-      error: error.message
-    });
-  }
+// API endpoint
+exports.api = onRequest({ region: 'europe-west9' }, (req, res) => {
+  res.json({ message: 'API endpoint' });
 });
-
 
