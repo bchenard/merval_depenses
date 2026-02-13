@@ -62,11 +62,11 @@ export class ExpensesComponent implements OnInit {
   }
 
   protected reloadEstimate(): void {
-    this.loadMonthlyEstimate();
+    this.loadExpenses();
   }
 
   protected reloadExpenses(): void {
-    this.loadExpenses();
+    this.loadMonthlyEstimate();
   }
 
   protected loadExpenses(): void {
